@@ -17,7 +17,13 @@ struct sem{
     int broj[7];
 }*semafor;
 
-void *zadatak(int i)
+
+void  izbrisi_memoriju(int signalId) {
+    (void) shmdt((char*) semafor);
+    (void) shmctl(id, IPC_RMID, NULL);
+    exit(0);
+}
+void *glavno(int i)
 {
      sleep(1);
      int n = i;
@@ -36,25 +42,22 @@ void *zadatak(int i)
                      sleep(1);
                      }
      if(n==0) sem_post(&semafor->s[0]);
-     if(n==1){
-            sem_post(&semafor->s[1]);
-            sem_post(&semafor->s[6]);
-     }
- if(n==2) sem_post(&semafor->s[2]);
+     if(n==2) sem_post(&semafor->s[2]);
      if(n==3) sem_post(&semafor->s[3]);
      if(n==4) sem_post(&semafor->s[4]);
      if(n==5) sem_post(&semafor->s[5]);
+     if(n==1){
+     	    sem_post(&semafor->s[1]);
+            sem_post(&semafor->s[6]);
+	 }
+	  
      exit(0);
 }
-void brisi_mem(int signalId) {
-    (void) shmdt((char*) semafor);
-    (void) shmctl(id, IPC_RMID, NULL);
-    exit(0);
-}
+
 int main() {
     id=shmget(IPC_PRIVATE, sizeof(sem), 0600);
     if(id==-1) exit(1);
-    sigset(SIGINT, brisi_mem);
+    sigset(SIGINT, izbrisi_memoriju);
     semafor=(sem *) shmat(id, NULL, 0);
     srand(time(NULL));
     rand();
@@ -66,13 +69,13 @@ int main() {
     sleep(1);
     for(i=0;i<7;i++){
             if(fork()==0){
-                zadatak(i);
+                glavno(i);
             }
     }
  for(i=0;i<7;i++){
             wait(NULL);
     }
-    brisi_mem(0);
+    izbrisi_memoriju(0);
     return 0;
 }
 
