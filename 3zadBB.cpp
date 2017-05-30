@@ -36,6 +36,10 @@ int SemSetVal(int SemNum, int SemVal){
         return semctl(SemId, SemNum, SETVAL, SemVal);
 }
 
+void SemRemove(void){
+        (void) semctl(SemId, 0, IPC_RMID, 0);
+}
+
 int SemOp(int SemNum, int SemOp){
         struct sembuf SemBuf;
         SemBuf.sem_num = SemNum;
@@ -44,31 +48,33 @@ int SemOp(int SemNum, int SemOp){
         return semop(SemId, &SemBuf, 1);
 }
 
-void SemRemove(void){
-        (void) semctl(SemId, 0, IPC_RMID, 0);
+void brisi(int sig){
+        (void) shmdt((char *) shared);
+        (void) shmctl(shmId, IPC_RMID, NULL);
+        exit(0);
 }
-void Proizvodac(int j){
+void Proiz(int y){
         srand(getpid());
-        int i=0;
-        for (i=0; i<K; i++){
+        int x=0;
+        for (x=0; x<K; x++){
                 SemOp(PUN,-1);
                 SemOp(PISI,-1);
                 shared->M[shared->ULAZ] = rand()%1000;
-                cout<<"Proizvodac "<<j<<" salje "<<shared->M[shared->ULAZ]<<endl;
+                cout<<"Proizvodac "<<y<<" salje "<<shared->M[shared->ULAZ]<<endl;
                 sleep(1);
                 shared->ULAZ = (shared->ULAZ + 1) % 5;
                 SemOp(PISI, 1);
                 SemOp(PRAZAN, 1);
         }
-        cout<<"Proizvodac "<<j<<" zavrsio sa slanjem."<<endl;;
+        cout<<"Proizvodac "<<y<<" zavrsio sa slanjem."<<endl;;
         exit(0);
 }
-void Potrosac(){
+void Potro(){
         int suma = 0;
-        int i = 0;
-        for (i=0; i<(N*K); i++){
+        int x = 0;
+        for (x=0; x<(N*K); x++){
                 SemOp(PRAZAN,-1);
-                cout<<"Potrosac prima "<<shared->M[shared->IZLAZ]<<endl;
+                cout<<"Potro prima "<<shared->M[shared->IZLAZ]<<endl;
                 sleep(1);
                 suma += shared->M[shared->IZLAZ];
                 shared->IZLAZ = (shared->IZLAZ+1)%5;
@@ -77,11 +83,7 @@ void Potrosac(){
         cout<<"Potrosac - suma primljenih brojeva = "<<suma<<endl;
         exit(0);
 }
-void brisi(int sig){
-        (void) shmdt((char *) shared);
-        (void) shmctl(shmId, IPC_RMID, NULL);
-        exit(0);
-}
+
 
 int main (int argc, char* argv[]) {
         if(argc < 3){
@@ -107,14 +109,14 @@ int main (int argc, char* argv[]) {
  for(k=0; k<=N; k++){
                 if (fork() == 0){
                         if(k==0){
-                                Potrosac();
+                                Potro();
                         } else{
-                                Proizvodac(k);
+                                Proiz(k);
                         }
                 }
         }
-        int i;
-        for(i=0; i<=N; i++){
+        int x;
+        for(x=0; x<=N; x++){
                 wait(NULL);
         }
         semctl(SemId, 0, IPC_RMID, 0);
