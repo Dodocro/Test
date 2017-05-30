@@ -11,77 +11,82 @@
 
 using namespace std;
 typedef struct PODACI{
-        int ULAZ;
-        int IZLAZ;
+        int IN;
+        int OUT;
         int M[5];
 }Shared;
 Shared *shared;
 int shmId;
 int N;
 int K;
-int PUN = 0;
+int PUNI = 0;
 int PISI = 1;
 int PRAZAN = 2;
-int SemId;
+int SemaforId;
 
-void SemGet(int n){
-        SemId = semget(IPC_PRIVATE, n, 0600);
+void SemaforGet(int n){
+        SemaforId = semget(IPC_PRIVATE, n, 0600);
 
-        if(SemId == -1){
+        if(SemaforId == -1){
                 cout<<"Nema semafora!"<<endl;
                 exit(1);
         }
 }
-int SemSetVal(int SemNum, int SemVal){
-        return semctl(SemId, SemNum, SETVAL, SemVal);
+int SemSet(int SemNum, int SemVal){
+        return semctl(SemaforId, SemNum, SETVAL, SemVal);
 }
 
-int SemOp(int SemNum, int SemOp){
-        struct sembuf SemBuf;
-        SemBuf.sem_num = SemNum;
-        SemBuf.sem_op = SemOp;
-        SemBuf.sem_flg = 0;
-        return semop(SemId, &SemBuf, 1);
+
+
+int SemaforOp(int SemNum, int SemaforOp){
+        struct sembuf SemaforBuf;
+        SemaforBuf.sem_num = SemNum;
+        SemaforBuf.sem_op = SemaforOp;
+        SemaforBuf.sem_flg = 0;
+        return semop(SemaforId, &SemaforBuf, 1);
 }
 
-void SemRemove(void){
-        (void) semctl(SemId, 0, IPC_RMID, 0);
-}
-void Proizvodac(int j){
-        srand(getpid());
-        int i=0;
-        for (i=0; i<K; i++){
-                SemOp(PUN,-1);
-                SemOp(PISI,-1);
-                shared->M[shared->ULAZ] = rand()%1000;
-                cout<<"Proizvodac "<<j<<" salje "<<shared->M[shared->ULAZ]<<endl;
-                sleep(1);
-                shared->ULAZ = (shared->ULAZ + 1) % 5;
-                SemOp(PISI, 1);
-                SemOp(PRAZAN, 1);
-        }
-        cout<<"Proizvodac "<<j<<" zavrsio sa slanjem."<<endl;;
-        exit(0);
-}
-void Potrosac(){
-        int suma = 0;
-        int i = 0;
-        for (i=0; i<(N*K); i++){
-                SemOp(PRAZAN,-1);
-                cout<<"Potrosac prima "<<shared->M[shared->IZLAZ]<<endl;
-                sleep(1);
-                suma += shared->M[shared->IZLAZ];
-                shared->IZLAZ = (shared->IZLAZ+1)%5;
-                SemOp(PUN, 1);
-        }
-        cout<<"Potrosac - suma primljenih brojeva = "<<suma<<endl;
-        exit(0);
-}
 void brisi(int sig){
         (void) shmdt((char *) shared);
         (void) shmctl(shmId, IPC_RMID, NULL);
         exit(0);
 }
+
+void SemRemove(void){
+        (void) semctl(SemaforId, 0, IPC_RMID, 0);
+}
+
+void Proiz(int y){
+        srand(getpid());
+        int x=0;
+        for (x=0; x<K; x++){
+                SemaforOp(PUNI,-1);
+                SemaforOp(PISI,-1);
+                shared->M[shared->IN] = rand()%1000;
+                cout<<"Proizvodac "<<y<<" salje "<<shared->M[shared->IN]<<endl;
+                sleep(1);
+                shared->IN = (shared->IN + 1) % 5;
+                SemaforOp(PISI, 1);
+                SemaforOp(PRAZAN, 1);
+        }
+        cout<<"Proizvodac "<<y<<" zavrsio sa slanjem."<<endl;;
+        exit(0);
+}
+void Potro(){
+        int suma = 0;
+        int x = 0;
+        for (x=0; x<(N*K); x++){
+                SemaforOp(PRAZAN,-1);
+                cout<<"Potrosac prima "<<shared->M[shared->OUT]<<endl;
+                sleep(1);
+                suma += shared->M[shared->OUT];
+                shared->OUT = (shared->OUT+1)%5;
+                SemaforOp(PUNI, 1);
+        }
+        cout<<"Potrosac - suma primljenih brojeva = "<<suma<<endl;
+        exit(0);
+}
+
 
 int main (int argc, char* argv[]) {
         if(argc < 3){
@@ -97,27 +102,27 @@ int main (int argc, char* argv[]) {
                 exit(1);
         }
         shared = (Shared*) shmat(shmId, NULL, 0);
-        shared->ULAZ = 0;
-        shared->IZLAZ = 0;
-        SemGet(3);
-        SemSetVal(PISI, 1);
-        SemSetVal(PUN, 5);
-        SemSetVal(PRAZAN, 0);
+        shared->IN = 0;
+        shared->OUT = 0;
+        SemaforGet(3);
+        SemSet(PISI, 1);
+        SemSet(PUNI, 5);
+        SemSet(PRAZAN, 0);
         int k;
  for(k=0; k<=N; k++){
                 if (fork() == 0){
                         if(k==0){
-                                Potrosac();
+                                Potro();
                         } else{
-                                Proizvodac(k);
+                                Proiz(k);
                         }
                 }
         }
-        int i;
-        for(i=0; i<=N; i++){
+        int x;
+        for(x=0; x<=N; x++){
                 wait(NULL);
         }
-        semctl(SemId, 0, IPC_RMID, 0);
+        semctl(SemaforId, 0, IPC_RMID, 0);
         brisi(0);
         return 0;
 }
