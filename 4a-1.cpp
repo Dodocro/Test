@@ -1,57 +1,81 @@
-#include <cstdlib>
-#include <iostream>
-#include <pthread.h>
+#include<pthread.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<time.h>
+#include<semaphore.h>
+#include<unistd.h>
+#include<iostream>
+#include<signal.h>
+#include <sys/shm.h>
+#include <sys/wait.h>
+
 using namespace std;
 
-pthread_mutex_t lockin;
-int noft;
-int num = 0;
-pthread_cond_t barijera;
+int id;
+struct sem{
+    sem_t s[7];
+    int br[7];
+}*semaf;
 
-void *zadatak_dretve (void *arg) {
-	
-	pthread_mutex_lock (&lockin);
-	int trenutna_dretva = *((int*) arg);
-	int a;
-	
-	cout << "Dretva " << trenutna_dretva << ". unesite broj" << endl;
-	cin >> a;
-	
-	num++;
-	if (num < noft) 
-		pthread_cond_wait (&barijera, &lockin);	
-	else {
-		num = 0;
-		pthread_cond_broadcast (&barijera);
-	}
-	
-	cout << "Dretva " << trenutna_dretva << ". uneseni broj je " << a << endl;
-	pthread_mutex_unlock (&lockin);
+void brisi_memoriju(int signalId) {
+    (void) shmdt((char*) semaf);
+    (void) shmctl(id, IPC_RMID, NULL);
+    exit(0);
 }
 
-int main (int argc, char *argv []) {	
-	noft = atoi (argv [1]);
-	
-	cout << "Broj dretvi=" << noft << endl;
-		
-	int *redni_broj = new int [noft];
-	for (int i = 0; i < noft; i++) 
-		redni_broj [i] = i;
-	
-	
-	pthread_t *polje = new pthread_t [noft];
-	for (int i = 0; i < noft; i++) 
-		if (pthread_create (&polje [i], NULL, &zadatak_dretve, &redni_broj [i]) == -1 && (cout << "Greska pri stvaranju " << i << ". dretve!" << endl)) 
-			exit(1);
-	 	
-	int i = 0;
-	while (i < noft) {
-		pthread_join (polje [i], NULL);
-		i++;
-	}
-	
-	pthread_mutex_destroy (&lockin);
-	pthread_cond_destroy (&barijera);
-	delete [] redni_broj;
-	return 0;
+void *zad(int x)
+{
+     sleep(1);
+     int n = x;
+     if(n==2) sem_wait(&semaf->s[1]);
+     if(n==3) sem_wait(&semaf->s[6]);
+     if(n==4) sem_wait(&semaf->s[0]);
+     if(n==5) sem_wait(&semaf->s[2]);
+     if(n==6){
+         sem_wait(&semaf->s[3]);
+         sem_wait(&semaf->s[4]);
+         sem_wait(&semaf->s[5]);
+     }
+     int y;
+     for(y=0;y<semaf->br[n];y++){
+                     cout<<"Izvodim zadatak "<<n+1<<": "<<y+1<<"/"<<semaf->br[n]<<endl;
+                     sleep(1);
+                     }
+     if(n==0) sem_post(&semaf->s[0]);
+     if(n==1){
+            sem_post(&semaf->s[1]);
+            sem_post(&semaf->s[6]);
+     }
+ if(n==2) sem_post(&semaf->s[2]);
+     if(n==3) sem_post(&semaf->s[3]);
+     if(n==4) sem_post(&semaf->s[4]);
+     if(n==5) sem_post(&semaf->s[5]);
+     exit(0);
 }
+int main() {
+    id=shmget(IPC_PRIVATE, sizeof(sem), 0600);
+    if(id==-1) exit(1);
+    sigset(SIGINT, brisi_memoriju);
+    semaf=(sem *) shmat(id, NULL, 0);
+    srand(time(NULL));
+    rand();
+    int x;
+    for(x=0;x<7;x++){
+            sem_init(&semaf->s[x], 1, 0);
+                semaf->br[x]=rand()%9+1;
+            }
+    sleep(1);
+    for(x=0;x<7;x++){
+            if(fork()==0){
+                zad(x);
+            }
+    }
+ for(x=0;x<7;x++){
+            wait(NULL);
+    }
+    brisi_memoriju(0);
+    return 0;
+}
+
+
+
