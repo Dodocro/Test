@@ -1,57 +1,60 @@
-#include <cstdlib>
 #include <iostream>
+#include <cstdlib>
 #include <pthread.h>
 using namespace std;
 
 pthread_mutex_t lockin;
-int noft;
-int num = 0;
+int n;
+int broj = 0;
 pthread_cond_t barijera;
 
-void *zadatak_dretve (void *arg) {
+void *glavno (void *arg) {
 	
 	pthread_mutex_lock (&lockin);
-	int trenutna_dretva = *((int*) arg);
-	int a;
+	int trenutno = *((int*) arg);
+	int dretva;
 	
-	cout << "Dretva " << trenutna_dretva << ". unesite broj" << endl;
-	cin >> a;
+	cout << "Dretva " << trenutno << ". unesite broj" << endl;
+	cin >> dretva;
 	
-	num++;
-	if (num < noft) 
+	broj++;
+	if (broj < n) 
 		pthread_cond_wait (&barijera, &lockin);	
 	else {
-		num = 0;
+		broj = 0;
 		pthread_cond_broadcast (&barijera);
 	}
 	
-	cout << "Dretva " << trenutna_dretva << ". uneseni broj je " << a << endl;
+	cout << "Dretva " << trenutno << ". uneseni broj je " << dretva << endl;
 	pthread_mutex_unlock (&lockin);
 }
 
-int main (int argc, char *argv []) {	
-	noft = atoi (argv [1]);
+int main (int argc, char *argv []) {
+	if(argv[1]==NULL){
+ 	cout<<"Neispravan unos."<<endl;
+ 	return 0;
+  	}	
+	n = atoi (argv [1]);
 	
-	cout << "Broj dretvi=" << noft << endl;
+	cout << "Broj dretvi=" << n << endl;
 		
-	int *redni_broj = new int [noft];
-	for (int i = 0; i < noft; i++) 
-		redni_broj [i] = i;
-	
-	
-	pthread_t *polje = new pthread_t [noft];
-	for (int i = 0; i < noft; i++) 
-		if (pthread_create (&polje [i], NULL, &zadatak_dretve, &redni_broj [i]) == -1 && (cout << "Greska pri stvaranju " << i << ". dretve!" << endl)) 
+	int *rednibroj = new int [n];
+	for (int i = 0; i < n; i++) 
+		rednibroj [i] = i;
+		
+	pthread_t *polje = new pthread_t [n];
+	for (int i = 0; i < n; i++) 
+		if (pthread_create (&polje [i], NULL, &glavno, &rednibroj [i]) == -1 && (cout << "Greska pri stvaranju " << i << ". dretve!" << endl)) 
 			exit(1);
 	 	
 	int i = 0;
-	while (i < noft) {
+	while (i < n) {
 		pthread_join (polje [i], NULL);
 		i++;
 	}
 	
 	pthread_mutex_destroy (&lockin);
 	pthread_cond_destroy (&barijera);
-	delete [] redni_broj;
+	delete [] rednibroj;
 	return 0;
 }
