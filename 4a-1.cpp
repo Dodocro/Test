@@ -4,54 +4,54 @@
 using namespace std;
 
 pthread_mutex_t lockin;
-int no;
-int br = 0;
-pthread_cond_t Barijera;
+int noft;
+int num = 0;
+pthread_cond_t barijera;
 
-void *zadatak (void *arg) {
+void *zadatak_dretve (void *arg) {
 	
 	pthread_mutex_lock (&lockin);
-	int tren_dretva = *((int*) arg);
+	int trenutna_dretva = *((int*) arg);
 	int a;
 	
-	cout << "Dretva " << tren_dretva << ". unesite broj" << endl;
+	cout << "Dretva " << trenutna_dretva << ". unesite broj" << endl;
 	cin >> a;
 	
-	br++;
-	if (br < no) 
-		pthread_cond_wait (&Barijera, &lockin);	
+	num++;
+	if (num < noft) 
+		pthread_cond_wait (&barijera, &lockin);	
 	else {
-		br = 0;
-		pthread_cond_broadcast (&Barijera);
+		num = 0;
+		pthread_cond_broadcast (&barijera);
 	}
 	
-	cout << "Dretva " << tren_dretva << ". uneseni broj je " << a << endl;
+	cout << "Dretva " << trenutna_dretva << ". uneseni broj je " << a << endl;
 	pthread_mutex_unlock (&lockin);
 }
 
 int main (int argc, char *argv []) {	
-	no = atoi (argv [1]);
+	noft = atoi (argv [1]);
 	
-	cout << "Broj dretvi=" << no << endl;
+	cout << "Broj dretvi=" << noft << endl;
 		
-	int *red_br = new int [no];
-	for (int x = 0; x < no; x++) 
-		red_br [x] = x;
+	int *redni_broj = new int [noft];
+	for (int i = 0; i < noft; i++) 
+		redni_broj [i] = i;
 	
 	
-	pthread_t *polje = new pthread_t [no];
-	for (int x = 0; x < no; x++) 
-		if (pthread_create (&polje [x], NULL, &zadatak, &red_br [x]) == -1 && (cout << "Greska pri stvaranju " << x << ". dretve!" << endl)) 
+	pthread_t *polje = new pthread_t [noft];
+	for (int i = 0; i < noft; i++) 
+		if (pthread_create (&polje [i], NULL, &zadatak_dretve, &redni_broj [i]) == -1 && (cout << "Greska pri stvaranju " << i << ". dretve!" << endl)) 
 			exit(1);
 	 	
-	int x = 0;
-	while (x < no) {
-		pthread_join (polje [x], NULL);
-		x++;
+	int i = 0;
+	while (i < noft) {
+		pthread_join (polje [i], NULL);
+		i++;
 	}
 	
 	pthread_mutex_destroy (&lockin);
-	pthread_cond_destroy (&Barijera);
-	delete [] red_br;
+	pthread_cond_destroy (&barijera);
+	delete [] redni_broj;
 	return 0;
 }
